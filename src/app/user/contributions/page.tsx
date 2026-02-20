@@ -3,72 +3,39 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, PenTool, MessageSquare, FileText, Heart, MessageCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, PenTool, MessageSquare, FileText, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { PET_CATEGORIES } from '@/types'
-
-interface Post {
-  id: string
-  title: string
-  content: string
-  category: string
-  likes: number
-  comments: number
-  createdAt: string
-}
 
 export default function ContributionsPage() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchUserData()
-  }, [])
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        const data = await res.json()
 
-  const fetchUserData = async () => {
-    try {
-      const res = await fetch('/api/auth/me')
-      const data = await res.json()
-
-      if (!data.user) {
-        router.push('/user/login')
-        return
+        if (!data.user) {
+          router.push('/user/login')
+          return
+        }
+      } catch (error) {
+        console.error('获取用户数据失败:', error)
+      } finally {
+        setLoading(false)
       }
-
-      setUser(data.user)
-
-      // 获取用户的帖子
-      const postsRes = await fetch('/api/user/posts')
-      if (postsRes.ok) {
-        const postsData = await postsRes.json()
-        setPosts(postsData.posts || [])
-      }
-    } catch (error) {
-      console.error('获取用户数据失败:', error)
-    } finally {
-      setLoading(false)
     }
-  }
-
-  const getCategoryLabel = (category: string) => {
-    const cat = PET_CATEGORIES[category as keyof typeof PET_CATEGORIES]
-    return cat ? `${cat.icon} ${cat.label}` : category
-  }
-
-  const getCategoryIcon = (category: string) => {
-    const cat = PET_CATEGORIES[category as keyof typeof PET_CATEGORIES]
-    return cat?.icon || '🐾'
-  }
+    
+    checkAuth()
+  }, [router])
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+          <Loader2 className="w-8 h-8 animate-spin text-orange-500 mx-auto" />
           <p className="mt-4 text-gray-500">加载中...</p>
         </div>
       </div>
@@ -105,53 +72,14 @@ export default function ContributionsPage() {
           </TabsList>
 
           <TabsContent value="posts">
-            {loading ? (
-              <div className="flex justify-center py-16">
-                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-              </div>
-            ) : posts.length === 0 ? (
-              <div className="text-center py-16">
-                <PenTool className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h2 className="text-xl font-medium text-gray-400 mb-2">暂无帖子</h2>
-                <p className="text-gray-400 mb-6">在社区分享你的养宠经验吧</p>
-                <Button onClick={() => router.push('/community')}>
-                  前往社区
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {posts.map((post) => (
-                  <Card 
-                    key={post.id} 
-                    className="hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => router.push(`/community?post=${post.id}`)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">
-                          {getCategoryLabel(post.category)}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {new Date(post.createdAt).toLocaleDateString('zh-CN')}
-                        </span>
-                      </div>
-                      <h3 className="font-bold text-lg mb-2">{post.title}</h3>
-                      <p className="text-gray-500 text-sm line-clamp-2">{post.content}</p>
-                      <div className="mt-3 flex items-center gap-4 text-sm text-gray-400">
-                        <span className="flex items-center gap-1">
-                          <Heart className="w-4 h-4" />
-                          {post.likes} 点赞
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MessageCircle className="w-4 h-4" />
-                          {post.comments} 评论
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            <div className="text-center py-16">
+              <PenTool className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h2 className="text-xl font-medium text-gray-400 mb-2">帖子统计</h2>
+              <p className="text-gray-400 mb-6">您的发帖数量和获赞数已在个人中心展示</p>
+              <Button onClick={() => router.push('/user')}>
+                查看个人中心
+              </Button>
+            </div>
           </TabsContent>
 
           <TabsContent value="supplements">

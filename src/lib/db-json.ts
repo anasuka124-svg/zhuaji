@@ -1,9 +1,12 @@
 import fs from 'fs'
 import path from 'path'
 
-// 数据文件路径
-const DATA_DIR = '/tmp/zhuaji-data'
+// 数据文件路径 - 使用环境变量配置，支持持久化存储
+// 在 Zeabur 上设置 DATA_DIR 环境变量指向持久化存储目录
+const DATA_DIR = process.env.DATA_DIR || '/tmp/zhuaji-data'
 const DATA_FILE = path.join(DATA_DIR, 'data.json')
+
+console.log('[DB] Data directory:', DATA_DIR)
 
 // 数据结构
 interface DataStore {

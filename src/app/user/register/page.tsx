@@ -69,6 +69,8 @@ export default function RegisterPage() {
   const [petPhotos, setPetPhotos] = useState<string[]>([]);
   const [petDescription, setPetDescription] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifiedPets, setVerifiedPets] = useState<{url: string, type: string}[]>([]);
   
   // 非养宠人认证
   const [quizDialogOpen, setQuizDialogOpen] = useState(false);
@@ -141,8 +143,47 @@ export default function RegisterPage() {
 
       const data = await response.json();
       if (response.ok) {
-        setPetPhotos([...petPhotos, data.url]);
-        toast({ title: '照片上传成功' });
+        // 上传成功后验证是否为宠物图片
+        setVerifying(true);
+        toast({ title: '正在验证图片...' });
+        
+        try {
+          const verifyResponse = await fetch('/api/verify-pet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: data.url })
+          });
+          
+          const verifyData = await verifyResponse.json();
+          
+          if (verifyResponse.ok && verifyData.success) {
+            if (verifyData.isPet) {
+              setPetPhotos([...petPhotos, data.url]);
+              setVerifiedPets([...verifiedPets, { url: data.url, type: verifyData.petType || '宠物' }]);
+              toast({ 
+                title: '验证通过！', 
+                description: verifyData.petType ? `检测到：${verifyData.petType}` : '已识别为宠物照片'
+              });
+            } else {
+              toast({ 
+                title: '验证未通过', 
+                description: verifyData.reason || '未能在图片中识别到宠物，请上传清晰的宠物照片',
+                variant: 'destructive' 
+              });
+            }
+          } else {
+            // 验证API出错，仍然允许上传（降级处理）
+            setPetPhotos([...petPhotos, data.url]);
+            toast({ title: '照片上传成功（验证服务暂时不可用）' });
+          }
+        } catch (verifyError) {
+          // 验证失败，仍然允许上传（降级处理）
+          console.error('Verify error:', verifyError);
+          setPetPhotos([...petPhotos, data.url]);
+          toast({ title: '照片上传成功' });
+        } finally {
+          setVerifying(false);
+        }
       } else {
         toast({ title: data.error || '上传失败', variant: 'destructive' });
       }
@@ -414,11 +455,14 @@ export default function RegisterPage() {
                   {petPhotos.length < 3 && (
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
-                      className={`aspect-square rounded-xl border-2 border-dashed ${currentTheme.border} flex flex-col items-center justify-center hover:border-orange-500 transition-colors ${uploading ? 'opacity-50' : ''}`}
+                      disabled={uploading || verifying}
+                      className={`aspect-square rounded-xl border-2 border-dashed ${currentTheme.border} flex flex-col items-center justify-center hover:border-orange-500 transition-colors ${uploading || verifying ? 'opacity-50' : ''}`}
                     >
-                      {uploading ? (
-                        <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                      {uploading || verifying ? (
+                        <>
+                          <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                          <span className={`text-xs ${currentTheme.cardText} mt-1`}>{verifying ? '验证中' : '上传中'}</span>
+                        </>
                       ) : (
                         <>
                           <Camera className={`w-6 h-6 ${currentTheme.cardText}`} />
@@ -448,9 +492,16 @@ export default function RegisterPage() {
                 </div>
 
                 {petPhotos.length > 0 && (
-                  <div className="mt-4 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm flex items-center gap-2">
-                    <Check className="w-4 h-4" />
-                    已上传 {petPhotos.length} 张照片，可以完成注册
+                  <div className="mt-4 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Check className="w-4 h-4" />
+                      已上传 {petPhotos.length} 张照片，可以完成注册
+                    </div>
+                    {verifiedPets.length > 0 && (
+                      <div className="text-xs text-green-600">
+                        检测到的宠物：{verifiedPets.map(p => p.type).filter(Boolean).join('、') || '宠物'}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

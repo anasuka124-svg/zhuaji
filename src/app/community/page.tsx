@@ -5,13 +5,13 @@ import Link from 'next/link';
 import { 
   ArrowLeft, Eye, Heart, MessageCircle, Clock, Plus, 
   User, Menu, Sun, Moon, Users, Send, Check, Loader2,
-  Cat, Dog, Bird, Bug, Fish, Rabbit, PawPrint, Camera, X
+  Cat, Dog, Bird, Bug, Fish, Rabbit, PawPrint, Camera, X, ChevronLeft
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { useMounted } from '@/hooks/use-mounted';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PetCategory, PetCategoryLabels } from '@/types';
+import { PetCategory, PetCategoryLabels, PET_CATEGORIES } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -39,6 +40,17 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+
+interface Comment {
+  id: string;
+  content: string;
+  author: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
+  createdAt: string;
+}
 
 interface Post {
   id: string;
@@ -89,6 +101,13 @@ export default function CommunityPage() {
     tags: '',
     images: [] as string[]
   });
+
+  // 帖子详情相关状态
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   // 页面加载时获取用户信息和帖子
   useEffect(() => {
@@ -258,10 +277,87 @@ export default function CommunityPage() {
           }
           return p;
         }));
+        
+        // 更新详情页的帖子
+        if (selectedPost?.id === postId) {
+          setSelectedPost({
+            ...selectedPost,
+            likes: data.likes,
+            isLiked: data.liked
+          });
+        }
       }
     } catch (error) {
       console.error('Like error:', error);
     }
+  };
+
+  // 加载评论
+  const loadComments = async (postId: string) => {
+    setLoadingComments(true);
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments`);
+      const data = await response.json();
+      if (response.ok) {
+        setComments(data.comments);
+      }
+    } catch (error) {
+      console.error('Load comments error:', error);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  // 发表评论
+  const handleCommentSubmit = async () => {
+    if (!isLoggedIn) {
+      toast({ title: '请先登录', variant: 'destructive' });
+      return;
+    }
+
+    if (!commentText.trim()) {
+      return;
+    }
+
+    setSubmittingComment(true);
+    try {
+      const response = await fetch(`/api/posts/${selectedPost?.id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: commentText.trim() })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setComments([...comments, data.comment]);
+        setCommentText('');
+        setSelectedPost({
+          ...selectedPost!,
+          comments: selectedPost!.comments + 1
+        });
+        toast({ title: '评论成功！' });
+      } else {
+        toast({ title: data.error || '评论失败', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: '评论失败', variant: 'destructive' });
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  // 打开帖子详情
+  const openPostDetail = (post: Post) => {
+    setSelectedPost(post);
+    setComments([]);
+    loadComments(post.id);
+  };
+
+  // 关闭帖子详情
+  const closePostDetail = () => {
+    setSelectedPost(null);
+    setComments([]);
+    setCommentText('');
   };
 
   if (!mounted) return null;
@@ -282,6 +378,159 @@ export default function CommunityPage() {
         </header>
         <main className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-center min-h-[60vh]">
           <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+        </main>
+      </div>
+    );
+  }
+
+  // 帖子详情视图
+  if (selectedPost) {
+    return (
+      <div className={`min-h-screen ${currentTheme.background} ${currentTheme.text} transition-colors duration-300`}>
+        <header className={`sticky top-0 z-50 ${currentTheme.background} border-b ${currentTheme.border} px-4 py-3`}>
+          <div className="max-w-4xl mx-auto flex items-center gap-4">
+            <Button
+              variant="ghost"
+              className={`p-2 rounded-xl ${currentTheme.card}`}
+              onClick={closePostDetail}
+            >
+              <ChevronLeft className="w-5 h-5 mr-1" />
+              返回列表
+            </Button>
+          </div>
+        </header>
+
+        <main className="max-w-3xl mx-auto px-4 py-6">
+          {/* 帖子内容 */}
+          <Card className={`${currentTheme.card} border ${currentTheme.border}`}>
+            <CardHeader className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Avatar className="w-12 h-12">
+                  <AvatarImage src={selectedPost.author.avatar} />
+                  <AvatarFallback className="bg-orange-100">
+                    <User className="w-6 h-6 text-orange-500" />
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-lg">{selectedPost.author.name}</p>
+                  <p className={`text-xs ${currentTheme.cardText}`}>
+                    {new Date(selectedPost.createdAt).toLocaleDateString('zh-CN')}
+                  </p>
+                </div>
+                <Badge variant="outline" className="ml-auto">
+                  {PET_CATEGORIES[selectedPost.category as PetCategory]?.icon || '🐾'} 
+                  {PET_CATEGORIES[selectedPost.category as PetCategory]?.label || selectedPost.category}
+                </Badge>
+              </div>
+              <h1 className="text-2xl font-bold">{selectedPost.title}</h1>
+            </CardHeader>
+
+            <CardContent className="p-6 pt-0">
+              <div className="prose dark:prose-invert max-w-none mb-6">
+                <p className="whitespace-pre-wrap">{selectedPost.content}</p>
+              </div>
+
+              {/* 图片 */}
+              {selectedPost.images && selectedPost.images.length > 0 && (
+                <div className={`grid gap-2 mb-4 ${selectedPost.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  {selectedPost.images.map((img, idx) => (
+                    <div key={idx} className="rounded-lg overflow-hidden">
+                      <img src={img} alt={`图片${idx + 1}`} className="w-full h-48 object-cover" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 标签 */}
+              {selectedPost.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-4">
+                  {selectedPost.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="rounded-lg text-xs">#{tag}</Badge>
+                  ))}
+                </div>
+              )}
+
+              {/* 点赞按钮 */}
+              <div className="flex items-center justify-between border-t pt-4">
+                <Button
+                  variant="ghost"
+                  className={selectedPost.isLiked ? 'text-red-500' : ''}
+                  onClick={() => handleLike(selectedPost.id)}
+                >
+                  <Heart className={`h-5 w-5 mr-2 ${selectedPost.isLiked ? 'fill-current' : ''}`} />
+                  {selectedPost.likes} 点赞
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 评论区域 */}
+          <Card className={`mt-4 ${currentTheme.card} border ${currentTheme.border}`}>
+            <CardHeader className="p-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <MessageCircle className="h-5 w-5" />
+                评论 ({selectedPost.comments})
+              </h3>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              {loadingComments ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                </div>
+              ) : comments.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  暂无评论，快来发表第一条评论吧~
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="flex gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={comment.author.avatar} />
+                        <AvatarFallback>{comment.author.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{comment.author.name}</span>
+                          <span className={`text-xs ${currentTheme.cardText}`}>
+                            {new Date(comment.createdAt).toLocaleDateString('zh-CN')}
+                          </span>
+                        </div>
+                        <p className={`text-sm ${currentTheme.cardText} mt-1`}>{comment.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 发表评论 */}
+              <div className="flex gap-2 mt-4 pt-4 border-t">
+                <Input
+                  placeholder="写下你的评论..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && commentText.trim() && !submittingComment) {
+                      handleCommentSubmit();
+                    }
+                  }}
+                />
+                <Button 
+                  size="icon"
+                  className="bg-orange-500 hover:bg-orange-600"
+                  disabled={!commentText.trim() || !isLoggedIn || submittingComment}
+                  onClick={handleCommentSubmit}
+                >
+                  {submittingComment ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </main>
       </div>
     );
@@ -496,6 +745,7 @@ export default function CommunityPage() {
               post={post} 
               theme={currentTheme} 
               onLike={handleLike}
+              onClick={() => openPostDetail(post)}
               isLoggedIn={isLoggedIn}
             />
           ))}
@@ -517,17 +767,21 @@ export default function CommunityPage() {
 }
 
 // 帖子卡片组件
-function PostCard({ post, theme, onLike, isLoggedIn }: { 
+function PostCard({ post, theme, onLike, onClick, isLoggedIn }: { 
   post: Post; 
   theme: any; 
   onLike: (postId: string) => void;
+  onClick: () => void;
   isLoggedIn: boolean;
 }) {
   const categoryIcon = categoryIcons[post.category as PetCategory] || <PawPrint className="w-4 h-4" />;
   const categoryName = PetCategoryLabels[post.category as PetCategory] || post.category;
 
   return (
-    <div className={`p-5 rounded-2xl ${theme.card} shadow-sm ${theme.shadow} border border-gray-200/30 hover:shadow-md transition-all`}>
+    <div 
+      className={`p-5 rounded-2xl ${theme.card} shadow-sm ${theme.shadow} border border-gray-200/30 hover:shadow-md transition-all cursor-pointer`}
+      onClick={onClick}
+    >
       {/* 作者信息 */}
       <div className="flex items-center gap-3 mb-3">
         <Avatar className="w-10 h-10">
@@ -543,7 +797,9 @@ function PostCard({ post, theme, onLike, isLoggedIn }: {
               <Check className="w-3 h-3 mr-0.5" />
               已认证
             </Badge>
-            <span className={`text-xs ${theme.cardText}`}>{post.createdAt}</span>
+            <span className={`text-xs ${theme.cardText}`}>
+              {new Date(post.createdAt).toLocaleDateString('zh-CN')}
+            </span>
           </div>
         </div>
         <Badge variant="outline" className="rounded-lg shrink-0">
@@ -580,20 +836,23 @@ function PostCard({ post, theme, onLike, isLoggedIn }: {
       <div className={`flex items-center justify-between mt-4 pt-3 border-t ${theme.border}`}>
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => onLike(post.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onLike(post.id);
+            }}
             className={`flex items-center gap-1 text-sm transition-colors ${post.isLiked ? 'text-red-500' : `${theme.cardText} hover:text-red-500`}`}
           >
             <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
             {post.likes}
           </button>
-          <button className={`flex items-center gap-1 text-sm ${theme.cardText} hover:text-orange-500 transition-colors`}>
+          <span className={`flex items-center gap-1 text-sm ${theme.cardText}`}>
             <MessageCircle className="w-4 h-4" />
             {post.comments}
-          </button>
+          </span>
         </div>
         <span className={`text-xs ${theme.cardText} opacity-60`}>
           <Eye className="w-3.5 h-3.5 inline mr-1" />
-          阅读更多
+          点击查看详情
         </span>
       </div>
     </div>
