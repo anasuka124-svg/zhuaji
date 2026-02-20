@@ -1,0 +1,20 @@
+{
+  "name": "爪迹 - 宠物知识分享平台",
+  "short_name": "爪迹",
+  "description": "记录每一份爱宠之心，专业的宠物养护知识分享平台",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#F97316",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/pet-mascot.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "education"],
+  "lang": "zh-CN"
+}
