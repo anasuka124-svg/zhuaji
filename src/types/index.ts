@@ -8,6 +8,17 @@ export type PetCategory =
   | 'aquatic' 
   | 'other';
 
+// 宠物分类配置（包含图标和标签）
+export const PET_CATEGORIES: Record<PetCategory, { icon: string; label: string }> = {
+  cat: { icon: '🐱', label: '猫咪' },
+  dog: { icon: '🐕', label: '狗狗' },
+  bird: { icon: '🐦', label: '鸟类' },
+  reptile: { icon: '🦎', label: '爬宠' },
+  small_mammal: { icon: '🐹', label: '小型哺乳' },
+  aquatic: { icon: '🐠', label: '水族' },
+  other: { icon: '🐾', label: '其他异宠' }
+};
+
 export const PetCategoryLabels: Record<PetCategory, string> = {
   cat: '猫咪',
   dog: '狗狗',
@@ -16,6 +27,14 @@ export const PetCategoryLabels: Record<PetCategory, string> = {
   small_mammal: '小型哺乳',
   aquatic: '水族',
   other: '其他异宠'
+};
+
+// 来源类型配置
+export const SOURCE_TYPES: Record<string, { icon: string; label: string; color: string }> = {
+  official: { icon: '🏛️', label: '官方机构', color: 'text-blue-500' },
+  research: { icon: '🔬', label: '科学研究', color: 'text-purple-500' },
+  expert: { icon: '👨‍⚕️', label: '专家观点', color: 'text-green-500' },
+  community: { icon: '👥', label: '社区整理', color: 'text-orange-500' }
 };
 
 // 用户类型
