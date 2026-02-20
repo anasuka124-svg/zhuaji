@@ -199,9 +199,83 @@ export const likeDb = {
     return false
   },
 
+  async delete(userId: string, postId: string) {
+    const data = getData()
+    const index = data.likes.findIndex(l => l.userId === userId && l.postId === postId)
+    if (index !== -1) {
+      data.likes.splice(index, 1)
+      saveData()
+      return true
+    }
+    return false
+  },
+
   async exists(userId: string, postId: string) {
     const data = getData()
     return data.likes.some(l => l.userId === userId && l.postId === postId)
+  },
+
+  async findByPostId(postId: string) {
+    const data = getData()
+    return data.likes.filter(l => l.postId === postId)
+  }
+}
+
+// 帖子扩展操作
+export const postDbExtended = {
+  async incrementLikes(id: string) {
+    const data = getData()
+    const post = data.posts.find(p => p.id === id)
+    if (post) {
+      post.likes = (post.likes || 0) + 1
+      saveData()
+      return post.likes
+    }
+    return 0
+  },
+
+  async decrementLikes(id: string) {
+    const data = getData()
+    const post = data.posts.find(p => p.id === id)
+    if (post && post.likes > 0) {
+      post.likes = post.likes - 1
+      saveData()
+      return post.likes
+    }
+    return post?.likes || 0
+  },
+
+  async incrementComments(id: string) {
+    const data = getData()
+    const post = data.posts.find(p => p.id === id)
+    if (post) {
+      post.comments = (post.comments || 0) + 1
+      saveData()
+      return post.comments
+    }
+    return 0
+  }
+}
+
+// 评论操作
+export const commentDb = {
+  async create(comment: { id: string; postId: string; userId: string; userName: string; userAvatar?: string; content: string; createdAt: string }) {
+    const data = getData()
+    data.comments.push(comment)
+    saveData()
+    return comment.id
+  },
+
+  async findByPostId(postId: string) {
+    const data = getData()
+    return data.comments
+      .filter(c => c.postId === postId)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  },
+
+  async countByPostId(postId: string) {
+    const data = getData()
+    return data.comments.filter(c => c.postId === postId).length
   }
 }
 

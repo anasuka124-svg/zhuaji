@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { postDb, userDb, initTables } from '@/lib/db-json';
+import { postDb, userDb, likeDb, initTables } from '@/lib/db-json';
 
 // 获取帖子列表
 export async function GET(request: NextRequest) {
@@ -10,6 +10,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const search = searchParams.get('search')
+
+    // 获取当前用户ID
+    const cookieStore = await cookies()
+    const userId = cookieStore.get('userId')?.value
 
     let posts = await postDb.findAll({ status: 'approved', category: category || undefined })
 
@@ -22,23 +26,31 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const formattedPosts = posts.map((post: any) => ({
-      id: post.id,
-      title: post.title,
-      content: post.content,
-      category: post.category,
-      tags: post.tags ? JSON.parse(post.tags) : [],
-      images: post.images ? JSON.parse(post.images) : [],
-      author: {
-        id: post.authorId,
-        name: post.authorName || '未知用户',
-        avatar: post.authorAvatar || ''
-      },
-      likes: post.likes || 0,
-      comments: post.comments || 0,
-      isLiked: false,
-      status: post.status,
-      createdAt: post.createdAt
+    const formattedPosts = await Promise.all(posts.map(async (post: any) => {
+      // 检查用户是否点赞
+      let isLiked = false
+      if (userId) {
+        isLiked = await likeDb.exists(userId, post.id)
+      }
+
+      return {
+        id: post.id,
+        title: post.title,
+        content: post.content,
+        category: post.category,
+        tags: post.tags ? JSON.parse(post.tags) : [],
+        images: post.images ? JSON.parse(post.images) : [],
+        author: {
+          id: post.authorId,
+          name: post.authorName || '未知用户',
+          avatar: post.authorAvatar || ''
+        },
+        likes: post.likes || 0,
+        comments: post.comments || 0,
+        isLiked,
+        status: post.status,
+        createdAt: post.createdAt
+      }
     }))
 
     return NextResponse.json({ posts: formattedPosts })

@@ -57,6 +57,17 @@ interface Post {
   createdAt: string;
 }
 
+interface Comment {
+  id: string;
+  content: string;
+  author: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
+  createdAt: string;
+}
+
 export function CommunityPage() {
   const { isLoggedIn, user } = useStore();
   const { toast } = useToast();
@@ -70,6 +81,9 @@ export function CommunityPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [commentText, setCommentText] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   // 加载帖子列表
   const loadPosts = async () => {
@@ -185,6 +199,68 @@ export function CommunityPage() {
     }
   };
 
+  // 加载评论
+  const loadComments = async (postId: string) => {
+    setLoadingComments(true);
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments`);
+      const data = await response.json();
+      if (response.ok) {
+        setComments(data.comments);
+      }
+    } catch (error) {
+      console.error('Load comments error:', error);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  // 发表评论
+  const handleCommentSubmit = async () => {
+    if (!isLoggedIn) {
+      toast({ title: '请先登录', variant: 'destructive' });
+      return;
+    }
+
+    if (!commentText.trim()) {
+      return;
+    }
+
+    setSubmittingComment(true);
+    try {
+      const response = await fetch(`/api/posts/${selectedPost?.id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: commentText.trim() })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setComments([...comments, data.comment]);
+        setCommentText('');
+        setSelectedPost({
+          ...selectedPost!,
+          comments: selectedPost!.comments + 1
+        });
+        toast({ title: '评论成功！' });
+      } else {
+        toast({ title: data.error || '评论失败', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: '评论失败', variant: 'destructive' });
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  // 进入帖子详情时加载评论
+  useEffect(() => {
+    if (selectedPost) {
+      loadComments(selectedPost.id);
+      setComments([]);
+    }
+  }, [selectedPost?.id]);
+
   // 帖子详情
   if (selectedPost) {
     return (
@@ -263,9 +339,37 @@ export function CommunityPage() {
             </h3>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            {selectedPost.comments === 0 && (
+            {loadingComments ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+              </div>
+            ) : comments.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 暂无评论，快来发表第一条评论吧~
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="flex gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={comment.author.avatar} />
+                      <AvatarFallback>{comment.author.name[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm text-gray-800 dark:text-gray-200">
+                          {comment.author.name}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(comment.createdAt).toLocaleDateString('zh-CN')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                        {comment.content}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -276,13 +380,23 @@ export function CommunityPage() {
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 className="flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && commentText.trim() && !submittingComment) {
+                    handleCommentSubmit();
+                  }
+                }}
               />
               <Button 
                 size="icon"
                 className="bg-orange-500 hover:bg-orange-600"
-                disabled={!commentText.trim() || !isLoggedIn}
+                disabled={!commentText.trim() || !isLoggedIn || submittingComment}
+                onClick={handleCommentSubmit}
               >
-                <Send className="h-4 w-4" />
+                {submittingComment ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </CardContent>
