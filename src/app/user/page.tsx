@@ -29,6 +29,7 @@ export default function UserPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [stats, setStats] = useState({ postCount: 0, likesReceived: 0 });
 
   // 页面加载时从API获取用户信息
   useEffect(() => {
@@ -38,6 +39,16 @@ export default function UserPage() {
         const data = await response.json();
         if (data.user) {
           login(data.user);
+          
+          // 获取用户统计数据
+          const statsRes = await fetch('/api/user/stats');
+          if (statsRes.ok) {
+            const statsData = await statsRes.json();
+            setStats({
+              postCount: statsData.postCount || 0,
+              likesReceived: statsData.likesReceived || 0
+            });
+          }
         }
       } catch (error) {
         console.error('Failed to fetch user:', error);
@@ -204,11 +215,11 @@ export default function UserPage() {
                   <p className={`text-xs ${currentTheme.cardText}`}>收藏</p>
                 </div>
                 <div className={`p-3 rounded-xl ${currentTheme.background}`}>
-                  <p className="text-xl font-bold">0</p>
+                  <p className="text-xl font-bold">{stats.postCount}</p>
                   <p className={`text-xs ${currentTheme.cardText}`}>发帖</p>
                 </div>
                 <div className={`p-3 rounded-xl ${currentTheme.background}`}>
-                  <p className="text-xl font-bold">0</p>
+                  <p className="text-xl font-bold">{stats.likesReceived}</p>
                   <p className={`text-xs ${currentTheme.cardText}`}>获赞</p>
                 </div>
               </div>

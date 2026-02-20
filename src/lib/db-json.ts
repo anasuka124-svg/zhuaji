@@ -169,6 +169,18 @@ export const postDb = {
     return data.posts.find(p => p.id === id)
   },
 
+  async findByAuthorId(authorId: string) {
+    const data = getData()
+    return data.posts
+      .filter(p => p.authorId === authorId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  },
+
+  async countByAuthorId(authorId: string) {
+    const data = getData()
+    return data.posts.filter(p => p.authorId === authorId).length
+  },
+
   async create(post: any) {
     const data = getData()
     data.posts.push(post)
@@ -218,6 +230,17 @@ export const likeDb = {
   async findByPostId(postId: string) {
     const data = getData()
     return data.likes.filter(l => l.postId === postId)
+  },
+
+  // 计算用户获得的点赞总数（通过用户的所有帖子）
+  async countReceivedLikesByUserId(userId: string) {
+    const data = getData()
+    // 找到用户的所有帖子ID
+    const userPostIds = data.posts
+      .filter(p => p.authorId === userId)
+      .map(p => p.id)
+    // 计算这些帖子的点赞总数
+    return data.likes.filter(l => userPostIds.includes(l.postId)).length
   }
 }
 

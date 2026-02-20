@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { PET_CATEGORIES, PetCategory } from '@/types';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -71,6 +72,8 @@ interface Comment {
 export function CommunityPage() {
   const { isLoggedIn, user } = useStore();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +104,15 @@ export function CommunityPage() {
       const data = await response.json();
       if (response.ok) {
         setPosts(data.posts);
+        
+        // 如果URL中有post参数，自动打开该帖子
+        const postId = searchParams.get('post');
+        if (postId) {
+          const post = data.posts.find((p: Post) => p.id === postId);
+          if (post) {
+            setSelectedPost(post);
+          }
+        }
       }
     } catch (error) {
       console.error('Load posts error:', error);
@@ -272,7 +284,10 @@ export function CommunityPage() {
         <Button
           variant="ghost"
           className="mb-4"
-          onClick={() => setSelectedPost(null)}
+          onClick={() => {
+            setSelectedPost(null);
+            router.push('/community');
+          }}
         >
           <ChevronLeft className="h-5 w-5 mr-1" />
           返回列表

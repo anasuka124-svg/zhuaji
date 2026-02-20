@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, PenTool, MessageSquare, FileText } from 'lucide-react'
+import { ArrowLeft, PenTool, MessageSquare, FileText, Heart, MessageCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { PET_CATEGORIES } from '@/types'
 
 interface Post {
   id: string
@@ -14,6 +15,7 @@ interface Post {
   content: string
   category: string
   likes: number
+  comments: number
   createdAt: string
 }
 
@@ -40,8 +42,11 @@ export default function ContributionsPage() {
       setUser(data.user)
 
       // 获取用户的帖子
-      // 这里应该从API获取用户贡献的内容
-      setPosts([])
+      const postsRes = await fetch('/api/user/posts')
+      if (postsRes.ok) {
+        const postsData = await postsRes.json()
+        setPosts(postsData.posts || [])
+      }
     } catch (error) {
       console.error('获取用户数据失败:', error)
     } finally {
@@ -50,16 +55,13 @@ export default function ContributionsPage() {
   }
 
   const getCategoryLabel = (category: string) => {
-    const labels: Record<string, string> = {
-      cat: '猫咪',
-      dog: '狗狗',
-      bird: '鸟类',
-      reptile: '爬宠',
-      small_mammal: '小型哺乳',
-      aquatic: '水族',
-      other: '其他'
-    }
-    return labels[category] || category
+    const cat = PET_CATEGORIES[category as keyof typeof PET_CATEGORIES]
+    return cat ? `${cat.icon} ${cat.label}` : category
+  }
+
+  const getCategoryIcon = (category: string) => {
+    const cat = PET_CATEGORIES[category as keyof typeof PET_CATEGORIES]
+    return cat?.icon || '🐾'
   }
 
   if (loading) {
@@ -103,7 +105,11 @@ export default function ContributionsPage() {
           </TabsList>
 
           <TabsContent value="posts">
-            {posts.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+              </div>
+            ) : posts.length === 0 ? (
               <div className="text-center py-16">
                 <PenTool className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h2 className="text-xl font-medium text-gray-400 mb-2">暂无帖子</h2>
@@ -115,18 +121,31 @@ export default function ContributionsPage() {
             ) : (
               <div className="space-y-4">
                 {posts.map((post) => (
-                  <Card key={post.id} className="hover:shadow-md transition-shadow">
+                  <Card 
+                    key={post.id} 
+                    className="hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => router.push(`/community?post=${post.id}`)}
+                  >
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">
                           {getCategoryLabel(post.category)}
                         </span>
-                        <span className="text-xs text-gray-400">{post.createdAt}</span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(post.createdAt).toLocaleDateString('zh-CN')}
+                        </span>
                       </div>
                       <h3 className="font-bold text-lg mb-2">{post.title}</h3>
                       <p className="text-gray-500 text-sm line-clamp-2">{post.content}</p>
-                      <div className="mt-3 text-sm text-gray-400">
-                        ❤️ {post.likes} 点赞
+                      <div className="mt-3 flex items-center gap-4 text-sm text-gray-400">
+                        <span className="flex items-center gap-1">
+                          <Heart className="w-4 h-4" />
+                          {post.likes} 点赞
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MessageCircle className="w-4 h-4" />
+                          {post.comments} 评论
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
