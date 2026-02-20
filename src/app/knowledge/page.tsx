@@ -65,7 +65,7 @@ export default function KnowledgePage() {
           setKnowledge(knowledgeData.knowledge);
         } else {
           // 如果数据库为空，尝试初始化
-          await fetch('/api/seed', { method: 'POST' });
+          await fetch('/api/init', { method: 'POST' });
           // 重新获取
           const retryResponse = await fetch('/api/knowledge');
           const retryData = await retryResponse.json();
@@ -256,9 +256,9 @@ export default function KnowledgePage() {
             <p className="text-sm opacity-60 mb-4">点击下方按钮初始化数据</p>
             <Button 
               onClick={async () => {
-                const response = await fetch('/api/seed', { method: 'POST' });
+                const response = await fetch('/api/init', { method: 'POST' });
                 const data = await response.json();
-                if (data.imported) {
+                if (data.success) {
                   const retryResponse = await fetch('/api/knowledge');
                   const retryData = await retryResponse.json();
                   if (retryData.knowledge) {
